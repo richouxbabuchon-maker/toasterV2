@@ -131,14 +131,12 @@ client.on('interactionCreate', async interaction => {
                 }
             }
 
-            const ticketMember = await interaction.guild.members.fetch(interaction.user.id);
-
-            const displayName = ticketMember.displayName || ticketMember.user.username;
+            const rpName = interaction.member.displayName || interaction.user.username;
 
             const emoji = config.ticketEmojis?.[type] || "📋, ⚠️, 🤝";
 
             const channel = await interaction.guild.channels.create({
-                name: `${emoji}·${displayName}`,
+                name: `${emoji}·${rpName}`,
 
                 type: ChannelType.GuildText,
                 parent: category,
@@ -410,10 +408,12 @@ client.on('interactionCreate', async interaction => {
 
                     console.log("CONFIG DEBUG:", config.validatedCategory);
                 }
-            }  
+            }
+            
+            const member = interaction.member;
 
-            console.log("DISPLAY NAME:", member.displayName);
-            console.log("USERNAME:", member.user.username);
+            console.log("DISPLAY NAME:", interaction.member.displayName);
+            console.log("USERNAME:", interaction.member.user.username);
             
             // ================= REFUSE =================
             if (id === 'refuse_ticket') {
@@ -471,7 +471,44 @@ client.on('interactionCreate', async interaction => {
             }).catch(() => {});
         }
     }
+        if (interaction.isButton() && interaction.customId === "change_nick") {
+
+            return interaction.reply({
+                content: "✏️ Changer mon pseudo",
+                flags: 64
+            });
+        }
 });
+
+client.on('guildMemberAdd', async (member) => {
+
+        const embed = new EmbedBuilder()
+             .setTitle("🚀 Bienvenue dans notre agence spatiale")
+             .setDescription(
+                "👋 Pour continuer, merci de changer ton pseudo RP.\n\n" +
+                "📌 Format obligatoire : `Prénom Nom`\n\n" +
+                "Clique sur le bouton ci-dessous pour le modifier."
+             )
+             .setColor(0x0B3D91);
+
+        const row  =new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("change_nick")
+                .setLabel("✏️ Changer mon pseudo") 
+                .setStyle(ButtonStyle.Primary)   
+                
+        );
+        
+        const channel = member.guild.systemChannel; // ou un salon welcome
+
+        if (channel) {
+            channel.send({
+                content: `${member}`,
+                embeds: [embed],
+                components: [row]
+            });
+        }
+    });
 
 // ================= LOGIN =================
 
