@@ -1,6 +1,6 @@
 module.exports = {
-    token: ProcessingInstruction.env.TOKEN,
-    
+    token: process.env.TOKEN,
+
     guildId: "1499426593616166932",
 
     // Role Staff principal
@@ -32,5 +32,8 @@ module.exports = {
 
     // Catégories si validé
     validatedCategory: "1503136840658452511",
+
     
 };
+
+console.log("CONFIG FILE LOADED")
