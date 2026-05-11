@@ -45,7 +45,10 @@ client.once('ready', async () => {
     const rest = new REST({ version: '10' }).setToken(config.token);
 
     await rest.put(
-        Routes.applicationGuildCommands(client.user.id, config.guildId),
+        Routes.applicationGuildCommands(
+            client.user.id,
+            config.guildId
+        ),
         { body: commands }
     );
 
@@ -56,46 +59,43 @@ client.once('ready', async () => {
 
 client.on('guildMemberAdd', async (member) => {
 
-    try {
-
-        // rôle bloqué
-        const unverified = member.guild.roles.cache.get(config.unverifiedRole);
-        if (unverified) await member.roles.add(unverified).catch(() => {});
-
-        const channel = member.guild.channels.cache.get(config.welcomeChannel);
-        if (!channel) return;
-
-        const embed = new EmbedBuilder()
-            .setTitle("🚀 Bienvenue dans l'agence NASA")
-            .setDescription(
-                "👋 Avant d'accéder au serveur,\n" +
-                "tu dois définir ton identité RP.\n\n" +
-                "📌 Format obligatoire : `Prénom Nom`"
-            )
-            .setColor(0x0B3D91)
-            .setFooter({ text: "NASA Identity System" });
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("change_nick")
-                .setLabel("✏️ Définir mon identité")
-                .setStyle(ButtonStyle.Primary)
-        );
-
-        await channel.send({
-            content: `${member}`,
-            embeds: [embed],
-            components: [row]
-        });
-
-    } catch (err) {
-        console.error("JOIN ERROR:", err);
+    const unverifiedRole = member.guild.roles.cache.get(config.unverifiedRole);
+    if (unverifiedRole) {
+        await member.roles.add(unverifiedRole).catch(() => {});
     }
+
+    const channel = member.guild.channels.cache.get(config.welcomeChannel);
+    if (!channel) return;
+
+    const embed = new EmbedBuilder()
+        .setTitle("🚀 Bienvenue dans notre agence spatiale")
+        .setDescription(
+            "👋 Avant d'accéder au serveur,\n" +
+            "vous devez définir votre identité RP.\n\n" +
+            "📌 Format obligatoire : Prénom Nom"
+        )
+        .setColor(0x0B3D91)
+        .setFooter({ text: "NASA Identity System" });
+
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId("change_nick")
+            .setLabel("✏️ Définir mon identité")
+            .setStyle(ButtonStyle.Primary)
+    );
+
+    await channel.send({
+        content: `${member}`,
+        embeds: [embed],
+        components: [row]
+    });
 });
 
 // ================= INTERACTIONS =================
 
 client.on('interactionCreate', async interaction => {
+
+    console.log("🔥", interaction.type, interaction.customId || interaction.commandName);
 
     try {
 
@@ -105,16 +105,20 @@ client.on('interactionCreate', async interaction => {
 
             const embed = new EmbedBuilder()
                 .setTitle("🚀 NASA Support Center")
-                .setDescription("🛰️ Choisis une mission pour ouvrir un ticket.")
+                .setDescription(
+                    "👨‍🚀 Bienvenue à la NASA Support System\n\n" +
+                    "🛰️ Quelle est votre demande aujourd’hui ?\n" +
+                    "Veuillez sélectionner une catégorie ci-dessous pour ouvrir un ticket."
+                )
                 .setColor(0x0B3D91);
 
             const menu = new StringSelectMenuBuilder()
                 .setCustomId('ticket_select')
-                .setPlaceholder('Sélectionner une mission')
+                .setPlaceholder('🛰️ Sélectionner une mission')
                 .addOptions([
                     { label: 'Recrutement', value: 'recrutement', emoji: '📋' },
-                    { label: 'Direction', value: 'contacter_la_direction', emoji: '⚠️' },
-                    { label: 'Partenariats', value: 'partenariats', emoji: '🤝' }
+                    { label: 'Contacter la Direction', value: 'contacter_la_direction', emoji: '⚠️' },
+                    { label: 'Partenariats', value: 'partenariats', emoji: '❓' }
                 ]);
 
             return interaction.reply({
@@ -123,7 +127,7 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
-        // ================= BUTTON RP NAME =================
+        // ================= MODAL =================
 
         if (interaction.isButton() && interaction.customId === "change_nick") {
 
@@ -135,31 +139,31 @@ client.on('interactionCreate', async interaction => {
                 .setCustomId("rp_name")
                 .setLabel("Prénom Nom")
                 .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setMinLength(3)
-                .setMaxLength(32);
+                .setRequired(true);
 
-            modal.addComponents(new ActionRowBuilder().addComponents(input));
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(input)
+            );
 
             return interaction.showModal(modal);
         }
 
-        // ================= MODAL RP =================
+        // ================= SUBMIT MODAL =================
 
         if (interaction.isModalSubmit() && interaction.customId === "nickname_modal") {
 
             const rpName = interaction.fields.getTextInputValue("rp_name");
 
-            await interaction.member.setNickname(rpName).catch(() => {});
+            await interaction.member.setNickname(rpName);
 
-            const unverified = interaction.guild.roles.cache.get(config.unverifiedRole);
+            const role = interaction.guild.roles.cache.get(config.unverifiedRole);
+            if (role) await interaction.member.roles.remove(role);
+
             const memberRole = interaction.guild.roles.cache.get(config.memberRole);
-
-            if (unverified) await interaction.member.roles.remove(unverified).catch(() => {});
-            if (memberRole) await interaction.member.roles.add(memberRole).catch(() => {});
+            if (memberRole) await interaction.member.roles.add(memberRole);
 
             return interaction.reply({
-                content: `✅ Identité validée : **${rpName}**`,
+                content: `✅ Ton identité RP est maintenant : **${rpName}**`,
                 flags: 64
             });
         }
@@ -173,15 +177,10 @@ client.on('interactionCreate', async interaction => {
             const category = config.categories[type];
             const staffRole = interaction.guild.roles.cache.get(config.staffRole);
 
-            if (!category || !staffRole) {
-                return interaction.reply({ content: "❌ config invalide", flags: 64 });
-            }
-
             const rpName = interaction.member.displayName || interaction.user.username;
-            const emoji = config.ticketEmojis?.[type] || "📋";
 
             const channel = await interaction.guild.channels.create({
-                name: `${emoji}・${rpName}`,
+                name: `🎫・${rpName}`,
                 type: ChannelType.GuildText,
                 parent: category,
                 topic: `ticket-${interaction.user.id}-${type}`,
@@ -194,16 +193,14 @@ client.on('interactionCreate', async interaction => {
                         id: interaction.user.id,
                         allow: [
                             PermissionsBitField.Flags.ViewChannel,
-                            PermissionsBitField.Flags.SendMessages,
-                            PermissionsBitField.Flags.ReadMessageHistory
+                            PermissionsBitField.Flags.SendMessages
                         ]
                     },
                     {
                         id: staffRole.id,
                         allow: [
                             PermissionsBitField.Flags.ViewChannel,
-                            PermissionsBitField.Flags.SendMessages,
-                            PermissionsBitField.Flags.ReadMessageHistory
+                            PermissionsBitField.Flags.SendMessages
                         ]
                     }
                 ]
@@ -211,21 +208,28 @@ client.on('interactionCreate', async interaction => {
 
             const embed = new EmbedBuilder()
                 .setTitle("🛰️ Mission ouverte")
-                .setDescription(`Catégorie : **${type}**`)
+                .setDescription(
+                    `Bienvenue ${interaction.user}\n\n` +
+                    `📂 Catégorie : **${type}**\n` +
+                    `👨‍🚀 Un agent vous répondra bientôt.`
+                )
                 .setColor(0x57F287);
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
-                    .setCustomId("close_ticket")
-                    .setLabel("Fermer")
+                    .setCustomId('close_ticket')
+                    .setLabel('Fermer la mission')
                     .setStyle(ButtonStyle.Danger)
-                    .setEmoji("🔒")
+                    .setEmoji('🔒')
             );
 
-            await channel.send({ embeds: [embed], components: [row] });
+            await channel.send({
+                embeds: [embed],
+                components: [row]
+            });
 
             return interaction.reply({
-                content: `✅ Ticket créé : ${channel}`,
+                content: `✅ Mission ouverte : ${channel}`,
                 flags: 64
             });
         }
@@ -234,53 +238,30 @@ client.on('interactionCreate', async interaction => {
 
         if (interaction.isButton() && interaction.customId === "close_ticket") {
 
-            return interaction.reply({
-                content: "Confirmer fermeture ?",
-                components: [
-                    new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId("confirm_close")
-                            .setLabel("Confirmer")
-                            .setStyle(ButtonStyle.Danger)
-                    )
-                ],
-                flags: 64
-            });
-        }
-
-        // ================= CONFIRM CLOSE =================
-
-        if (interaction.isButton() && interaction.customId === "confirm_close") {
-
-            await interaction.deferReply({ flags: 64 });
-
             const transcript = await discordTranscripts.createTranscript(interaction.channel);
 
             const logs = interaction.guild.channels.cache.get(config.logsChannel);
 
             if (logs) {
                 logs.send({
+                    files: [transcript],
                     embeds: [
                         new EmbedBuilder()
-                            .setTitle("📡 Ticket fermé")
-                            .setDescription(`Par ${interaction.user.tag}`)
+                            .setTitle("📡 Mission fermée")
                             .setColor(0xED4245)
-                    ],
-                    files: [transcript]
+                    ]
                 });
             }
 
-            await interaction.editReply("Fermeture...");
+            await interaction.reply({ content: "Fermeture...", flags: 64 });
 
-            setTimeout(() => interaction.channel.delete().catch(() => {}), 1500);
+            setTimeout(() => {
+                interaction.channel.delete().catch(() => {});
+            }, 1500);
         }
 
     } catch (err) {
         console.error("ERROR:", err);
-
-        if (interaction.isRepliable()) {
-            interaction.reply({ content: "❌ erreur système", flags: 64 }).catch(() => {});
-        }
     }
 });
 
