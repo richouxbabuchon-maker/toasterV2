@@ -1,4 +1,6 @@
 module.exports = {
+    token: ProcessingInstruction.env.TOKEN,
+    
     guildId: "1499426593616166932",
 
     // Role Staff principal

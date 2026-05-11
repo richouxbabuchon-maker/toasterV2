@@ -39,13 +39,9 @@ client.once('ready', async () => {
 
     await rest.put(
         Routes.applicationGuildCommands(client.user.id, config.guildId),
-        { body: [] }
-    );
-
-    await rest.put(
-        Routes.applicationGuildCommands(client.user.id, config.guildId),
         { body: commands }
     );
+
 
     console.log("✅ Slash commands OK");
 });
@@ -137,7 +133,7 @@ client.on('interactionCreate', async interaction => {
 
             const ticketMember = await interaction.guild.members.fetch(interaction.user.id);
 
-            const displayName = member.displayName || member.user.username;
+            const displayName = ticketMember.displayName || ticketMember.user.username;
 
             const emoji = config.ticketEmojis?.[type] || "📋, ⚠️, 🤝";
 
@@ -376,6 +372,7 @@ client.on('interactionCreate', async interaction => {
                     // 🔥 Donner rôle
                     const ticketOwnerId = interaction.channel.topic.split('-')[1];
 
+                    const member = await interaction.guild.members.fetch(ticketOwnerId);
 
                     if (member && config.acceptedRole) {
                         await member.roles.add(config.acceptedRole).catch(() => {});
