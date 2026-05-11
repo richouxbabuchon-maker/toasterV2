@@ -14,7 +14,10 @@ const {
     ButtonBuilder,
     ButtonStyle,
     REST,
-    Routes
+    Routes,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle
 } = require('discord.js');
 
 const discordTranscripts = require('discord-html-transcripts');
@@ -56,6 +59,13 @@ client.once('ready', async () => {
 
 client.on('guildMemberAdd', async (member) => {
 
+    // 🔒 Ajouter rôle bloqué
+    const unverifiedRole = member.guild.roles.cache.get(config.unverifiedRole);
+
+    if (unverifiedRole) {
+        await member.roles.add(unverifiedRole).catch(() => {});
+    }
+
     const channel = member.guild.channels.cache.get(config.welcomeChannel);
 
     if (!channel) return;
@@ -63,16 +73,19 @@ client.on('guildMemberAdd', async (member) => {
     const embed = new EmbedBuilder()
         .setTitle("🚀 Bienvenue dans notre agence spatiale")
         .setDescription(
-            "👋 Pour continuer, merci de changer ton pseudo RP.\n\n" +
-            "📌 Format obligatoire : `Prénom Nom`\n\n" +
-            "Clique sur le bouton ci-dessous."
+            "👋 Avant d'accéder au serveur,\n" +
+            "vous devez définir votre identité RP.\n\n" +
+            "📌 Format obligatoire : `Prénom Nom`"
         )
-        .setColor(0x0B3D91);
+        .setColor(0x0B3D91)
+        .setFooter({
+            text: "NASA Identity System"
+        });
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId("change_nick")
-            .setLabel("✏️ Changer mon pseudo")
+            .setLabel("✏️ Définir mon identité")
             .setStyle(ButtonStyle.Primary)
     );
 
@@ -164,6 +177,78 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
+        // ================= OPEN MODAL =================
+
+        if (
+            interaction.isButton() &&
+            interaction.customId === "change_nick"
+        ) {
+
+            const modal = new ModalBuilder()
+                .setCustomId("nickname_modal")
+                .setTitle("Identité RP");
+
+            const nicknameInput = new TextInputBuilder()
+                .setCustomId("rp_name")
+                .setLabel("Prénom Nom")
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder("Neil Armstrong")
+                .setRequired(true)
+                .setMinLength(3)
+                .setMaxLength(32);
+
+            const row = new ActionRowBuilder().addComponents(
+                nicknameInput
+            );
+
+            modal.addComponents(row);
+
+            return interaction.showModal(modal);
+        }
+
+        // ================= SUBMIT MODAL =================
+
+        if (
+            interaction.isModalSubmit() &&
+            interaction.customId === "nickname_modal"
+        ) {
+
+            const rpName =
+                interaction.fields.getTextInputValue("rp_name");
+
+            try {
+
+                // 🔥 Rename membre
+                await interaction.member.setNickname(rpName);
+
+                // 🔓 Retirer rôle bloqué
+                const unverifiedRole =
+                    interaction.guild.roles.cache.get(
+                        config.unverifiedRole
+                    );
+
+                if (unverifiedRole) {
+                    await interaction.member.roles.remove(unverifiedRole);
+                }
+
+                return interaction.reply({
+                    content:
+                        `✅ Ton identité RP est maintenant : **${rpName}**`,
+                    flags: 64
+                });
+
+            } catch (err) {
+
+                console.error(err);
+
+                return interaction.reply({
+                    content:
+                        "❌ Impossible de modifier ton pseudo.",
+                    flags: 64
+                });
+            }
+        }
+
         // ================= CREATE TICKET =================
 
         if (
@@ -174,9 +259,11 @@ client.on('interactionCreate', async interaction => {
             const type = interaction.values[0];
 
             const category = config.categories[type];
-            const staffRole = interaction.guild.roles.cache.get(config.staffRole);
+            const staffRole =
+                interaction.guild.roles.cache.get(config.staffRole);
 
             if (!category || !staffRole) {
+
                 return interaction.reply({
                     content: "❌ Configuration invalide",
                     flags: 64
@@ -193,13 +280,17 @@ client.on('interactionCreate', async interaction => {
 
             if (!hasBypass) {
 
-                const existing = interaction.guild.channels.cache.find(c =>
-                    c.topic === `ticket-${interaction.user.id}-${type}`
-                );
+                const existing =
+                    interaction.guild.channels.cache.find(c =>
+                        c.topic ===
+                        `ticket-${interaction.user.id}-${type}`
+                    );
 
                 if (existing) {
+
                     return interaction.reply({
-                        content: `❌ Tu as déjà une mission ${existing}`,
+                        content:
+                            `❌ Tu as déjà une mission : ${existing}`,
                         flags: 64
                     });
                 }
@@ -212,37 +303,43 @@ client.on('interactionCreate', async interaction => {
             const emoji =
                 config.ticketEmojis?.[type] || "📋";
 
-            const channel = await interaction.guild.channels.create({
-                name: `${emoji}・${rpName}`,
-                type: ChannelType.GuildText,
-                parent: category,
-                topic: `ticket-${interaction.user.id}-${type}`,
+            const channel =
+                await interaction.guild.channels.create({
 
-                permissionOverwrites: [
-                    {
-                        id: interaction.guild.id,
-                        deny: [
-                            PermissionsBitField.Flags.ViewChannel
-                        ]
-                    },
-                    {
-                        id: interaction.user.id,
-                        allow: [
-                            PermissionsBitField.Flags.ViewChannel,
-                            PermissionsBitField.Flags.SendMessages,
-                            PermissionsBitField.Flags.ReadMessageHistory
-                        ]
-                    },
-                    {
-                        id: staffRole.id,
-                        allow: [
-                            PermissionsBitField.Flags.ViewChannel,
-                            PermissionsBitField.Flags.SendMessages,
-                            PermissionsBitField.Flags.ReadMessageHistory
-                        ]
-                    }
-                ]
-            });
+                    name: `${emoji}・${rpName}`,
+
+                    type: ChannelType.GuildText,
+
+                    parent: category,
+
+                    topic:
+                        `ticket-${interaction.user.id}-${type}`,
+
+                    permissionOverwrites: [
+                        {
+                            id: interaction.guild.id,
+                            deny: [
+                                PermissionsBitField.Flags.ViewChannel
+                            ]
+                        },
+                        {
+                            id: interaction.user.id,
+                            allow: [
+                                PermissionsBitField.Flags.ViewChannel,
+                                PermissionsBitField.Flags.SendMessages,
+                                PermissionsBitField.Flags.ReadMessageHistory
+                            ]
+                        },
+                        {
+                            id: staffRole.id,
+                            allow: [
+                                PermissionsBitField.Flags.ViewChannel,
+                                PermissionsBitField.Flags.SendMessages,
+                                PermissionsBitField.Flags.ReadMessageHistory
+                            ]
+                        }
+                    ]
+                });
 
             const embed = new EmbedBuilder()
                 .setTitle("🛰️ Mission ouverte")
@@ -309,20 +406,6 @@ client.on('interactionCreate', async interaction => {
         if (interaction.isButton()) {
 
             const id = interaction.customId;
-
-            // ================= CHANGE NICK =================
-
-            if (id === "change_nick") {
-
-                return interaction.reply({
-                    content:
-                        "✏️ Va dans :\n\n" +
-                        "➡️ Clic droit sur le serveur\n" +
-                        "➡️ Modifier le profil du serveur\n" +
-                        "➡️ Change ton pseudo RP",
-                    flags: 64
-                });
-            }
 
             // ================= CLOSE =================
 
@@ -433,6 +516,7 @@ client.on('interactionCreate', async interaction => {
                 if (
                     !interaction.channel.topic.includes('recrutement')
                 ) {
+
                     return interaction.reply({
                         content:
                             '❌ Réservé aux tickets recrutement',
@@ -455,6 +539,7 @@ client.on('interactionCreate', async interaction => {
                         );
 
                     if (member && config.acceptedRole) {
+
                         await member.roles
                             .add(config.acceptedRole)
                             .catch(() => {});
@@ -508,6 +593,7 @@ client.on('interactionCreate', async interaction => {
                 if (
                     !interaction.channel.topic.includes('recrutement')
                 ) {
+
                     return interaction.reply({
                         content:
                             '❌ Réservé aux tickets recrutement',
