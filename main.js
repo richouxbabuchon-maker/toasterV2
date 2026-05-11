@@ -60,11 +60,13 @@ client.once('ready', async () => {
 client.on('guildMemberAdd', async (member) => {
 
     const unverifiedRole = member.guild.roles.cache.get(config.unverifiedRole);
+
     if (unverifiedRole) {
         await member.roles.add(unverifiedRole).catch(() => {});
     }
 
     const channel = member.guild.channels.cache.get(config.welcomeChannel);
+
     if (!channel) return;
 
     const embed = new EmbedBuilder()
@@ -110,7 +112,19 @@ client.on('interactionCreate', async interaction => {
                     "🛰️ Quelle est votre demande aujourd’hui ?\n" +
                     "Veuillez sélectionner une catégorie ci-dessous pour ouvrir un ticket."
                 )
-                .setColor(0x0B3D91);
+                .setColor(0x0B3D91)
+                .setThumbnail("https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg")
+                .setImage("https://www.nasa.gov/wp-content/uploads/2023/03/nasa-logo-web-rgb.png")
+                .addFields(
+                    { name: "📡 Statut", value: "Tous systèmes opérationnels", inline: true },
+                    { name: "⏱ Réponse", value: "Dans les meilleurs délais", inline: true },
+                    { name: "🎫 Support", value: "Disponible 24/7", inline: true }
+                )
+                .setFooter({
+                    text: "NASA Support System • Automated Ticket Center",
+                    iconURL: "https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg"
+                })
+                .setTimestamp();
 
             const menu = new StringSelectMenuBuilder()
                 .setCustomId('ticket_select')
@@ -127,7 +141,7 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
-        // ================= MODAL =================
+        // ================= MODAL OPEN =================
 
         if (interaction.isButton() && interaction.customId === "change_nick") {
 
@@ -139,36 +153,48 @@ client.on('interactionCreate', async interaction => {
                 .setCustomId("rp_name")
                 .setLabel("Prénom Nom")
                 .setStyle(TextInputStyle.Short)
-                .setRequired(true);
+                .setPlaceholder("Neil Armstrong")
+                .setRequired(true)
+                .setMinLength(3)
+                .setMaxLength(32);
 
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(input)
-            );
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
 
             return interaction.showModal(modal);
         }
 
-        // ================= SUBMIT MODAL =================
+        // ================= MODAL SUBMIT =================
 
         if (interaction.isModalSubmit() && interaction.customId === "nickname_modal") {
 
             const rpName = interaction.fields.getTextInputValue("rp_name");
 
-            await interaction.member.setNickname(rpName);
+            try {
 
-            const role = interaction.guild.roles.cache.get(config.unverifiedRole);
-            if (role) await interaction.member.roles.remove(role);
+                await interaction.member.setNickname(rpName);
 
-            const memberRole = interaction.guild.roles.cache.get(config.memberRole);
-            if (memberRole) await interaction.member.roles.add(memberRole);
+                const unverifiedRole = interaction.guild.roles.cache.get(config.unverifiedRole);
 
-            return interaction.reply({
-                content: `✅ Ton identité RP est maintenant : **${rpName}**`,
-                flags: 64
-            });
+                if (unverifiedRole) {
+                    await interaction.member.roles.remove(unverifiedRole).catch(() => {});
+                }
+
+                return interaction.reply({
+                    content: `✅ Ton identité RP est maintenant : **${rpName}**`,
+                    flags: 64
+                });
+
+            } catch (err) {
+                console.error(err);
+
+                return interaction.reply({
+                    content: "❌ Impossible de modifier ton pseudo.",
+                    flags: 64
+                });
+            }
         }
 
-        // ================= TICKETS =================
+        // ================= CREATE TICKET =================
 
         if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
 
@@ -177,10 +203,37 @@ client.on('interactionCreate', async interaction => {
             const category = config.categories[type];
             const staffRole = interaction.guild.roles.cache.get(config.staffRole);
 
+            if (!category || !staffRole) {
+                return interaction.reply({
+                    content: "❌ Configuration invalide",
+                    flags: 64
+                });
+            }
+
+            const member = interaction.member;
+
+            const hasBypass = config.bypassRoles?.some(role =>
+                member.roles.cache.has(role)
+            );
+
+            if (!hasBypass) {
+                const existing = interaction.guild.channels.cache.find(c =>
+                    c.topic === `ticket-${interaction.user.id}-${type}`
+                );
+
+                if (existing) {
+                    return interaction.reply({
+                        content: `❌ Tu as déjà une mission : ${existing}`,
+                        flags: 64
+                    });
+                }
+            }
+
             const rpName = interaction.member.displayName || interaction.user.username;
+            const emoji = config.ticketEmojis?.[type] || "📋";
 
             const channel = await interaction.guild.channels.create({
-                name: `🎫・${rpName}`,
+                name: `${emoji}・${rpName}`,
                 type: ChannelType.GuildText,
                 parent: category,
                 topic: `ticket-${interaction.user.id}-${type}`,
@@ -193,14 +246,16 @@ client.on('interactionCreate', async interaction => {
                         id: interaction.user.id,
                         allow: [
                             PermissionsBitField.Flags.ViewChannel,
-                            PermissionsBitField.Flags.SendMessages
+                            PermissionsBitField.Flags.SendMessages,
+                            PermissionsBitField.Flags.ReadMessageHistory
                         ]
                     },
                     {
                         id: staffRole.id,
                         allow: [
                             PermissionsBitField.Flags.ViewChannel,
-                            PermissionsBitField.Flags.SendMessages
+                            PermissionsBitField.Flags.SendMessages,
+                            PermissionsBitField.Flags.ReadMessageHistory
                         ]
                     }
                 ]
@@ -213,7 +268,8 @@ client.on('interactionCreate', async interaction => {
                     `📂 Catégorie : **${type}**\n` +
                     `👨‍🚀 Un agent vous répondra bientôt.`
                 )
-                .setColor(0x57F287);
+                .setColor(0x57F287)
+                .setTimestamp();
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
@@ -236,7 +292,36 @@ client.on('interactionCreate', async interaction => {
 
         // ================= CLOSE =================
 
-        if (interaction.isButton() && interaction.customId === "close_ticket") {
+        if (interaction.isButton() && interaction.customId === 'close_ticket') {
+
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle("🔒 Fermeture de mission")
+                        .setDescription("Confirmer ?")
+                        .setColor(0xED4245)
+                ],
+                components: [
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('confirm_close')
+                            .setLabel('Confirmer')
+                            .setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder()
+                            .setCustomId('cancel_close')
+                            .setLabel('Annuler')
+                            .setStyle(ButtonStyle.Secondary)
+                    )
+                ],
+                flags: 64
+            });
+        }
+
+        // ================= CONFIRM CLOSE =================
+
+        if (interaction.isButton() && interaction.customId === 'confirm_close') {
+
+            await interaction.deferReply({ flags: 64 });
 
             const transcript = await discordTranscripts.createTranscript(interaction.channel);
 
@@ -244,24 +329,45 @@ client.on('interactionCreate', async interaction => {
 
             if (logs) {
                 logs.send({
-                    files: [transcript],
                     embeds: [
                         new EmbedBuilder()
                             .setTitle("📡 Mission fermée")
+                            .setDescription(`Par ${interaction.user.tag}`)
                             .setColor(0xED4245)
-                    ]
+                    ],
+                    files: [transcript]
                 });
             }
 
-            await interaction.reply({ content: "Fermeture...", flags: 64 });
+            await interaction.editReply("🔒 Fermeture...");
 
             setTimeout(() => {
                 interaction.channel.delete().catch(() => {});
             }, 1500);
         }
 
+        // ================= CANCEL =================
+
+        if (interaction.isButton() && interaction.customId === 'cancel_close') {
+            return interaction.update({
+                embeds: [
+                    new EmbedBuilder()
+                        .setDescription("❌ annulé")
+                        .setColor(0x2ECC71)
+                ],
+                components: []
+            });
+        }
+
     } catch (err) {
-        console.error("ERROR:", err);
+        console.error("❌ ERROR:", err);
+
+        if (interaction.isRepliable()) {
+            return interaction.reply({
+                content: "❌ erreur système",
+                flags: 64
+            }).catch(() => {});
+        }
     }
 });
 
