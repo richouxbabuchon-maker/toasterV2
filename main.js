@@ -5,16 +5,19 @@ console.log("🚀 Bot démarré");
 const {
     Client,
     GatewayIntentBits,
-    EmbedBuilder,
+    PermissionsBitField,
     ActionRowBuilder,
+    StringSelectMenuBuilder,
+    EmbedBuilder,
+    SlashCommandBuilder,
     ButtonBuilder,
     ButtonStyle,
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    SlashCommandBuilder,
     REST,
-    Routes
+    Routes,
+    ChannelType
 } = require('discord.js');
 
 const config = require('./config');
@@ -22,9 +25,11 @@ const config = require('./config');
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessages
     ]
 });
+
 
 // ================= READY =================
 
@@ -47,110 +52,176 @@ client.once('ready', async () => {
     console.log("✅ Slash commands OK");
 });
 
-// ================= JOIN =================
+
+// ================= WELCOME SYSTEM =================
 
 client.on('guildMemberAdd', async (member) => {
 
-    try {
-        await member.roles.add(config.unverifiedRole);
+    const channel = member.guild.channels.cache.get(config.welcomeChannel);
+    if (!channel) return;
 
-        const channel = member.guild.channels.cache.get(config.welcomeChannel);
-        if (!channel) return;
+    const embed = new EmbedBuilder()
+        .setTitle("🚀 Bienvenue sur le serveur")
+        .setDescription(
+            "👋 Bienvenue !\n\n" +
+            "⚠️ Tu dois définir ton pseudo RP pour accéder au serveur.\n\n" +
+            "Clique sur le bouton ci-dessous."
+        )
+        .setColor(0x0B3D91);
 
-        const embed = new EmbedBuilder()
-            .setTitle("🚀 Bienvenue")
-            .setDescription("Définis ton pseudo RP pour accéder au serveur.")
-            .setColor(0x0B3D91);
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId("change_nick")
+            .setLabel("✏️ Définir mon pseudo RP")
+            .setStyle(ButtonStyle.Primary)
+    );
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("change_nick")
-                .setLabel("✏️ Définir mon pseudo")
-                .setStyle(ButtonStyle.Primary)
-        );
-
-        channel.send({
-            content: `${member}`,
-            embeds: [embed],
-            components: [row]
-        });
-
-    } catch (err) {
-        console.error(err);
-    }
+    channel.send({
+        content: `${member}`,
+        embeds: [embed],
+        components: [row]
+    });
 });
+
 
 // ================= INTERACTIONS =================
 
 client.on('interactionCreate', async (interaction) => {
 
-    // ===== PANEL =====
-    if (interaction.isChatInputCommand() && interaction.commandName === 'panel') {
+    try {
 
-        const embed = new EmbedBuilder()
-            .setTitle("🚀 Support Center")
-            .setDescription("Choisis une catégorie")
-            .setColor(0x0B3D91);
+        // ================= PANEL NASA =================
+        if (interaction.isChatInputCommand() && interaction.commandName === "panel") {
 
-        return interaction.reply({ embeds: [embed] });
-    }
+            const embed = new EmbedBuilder()
+                .setTitle("🚀 NASA Support Center")
+                .setDescription(
+                    "👨‍🚀 Bienvenue dans le système de support de la NASA\n\n" +
+                    "🛰️ Sélectionne une mission pour ouvrir un ticket."
+                )
+                .setColor(0x0B3D91)
+                .setThumbnail("https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg")
+                .setImage("https://www.nasa.gov/wp-content/uploads/2023/03/nasa-logo-web-rgb.png")
+                .addFields(
+                    { name: "📡 Statut", value: "Tous systèmes opérationnels", inline: true },
+                    { name: "⏱ Réponse", value: "Rapide (24/7)", inline: true },
+                    { name: "🎫 Support", value: "Actif", inline: true }
+                )
+                .setFooter({
+                    text: "NASA Support System • Ticket Center",
+                    iconURL: "https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg"
+                })
+                .setTimestamp();
 
-    // ===== BUTTON RP =====
-    if (interaction.isButton() && interaction.customId === "change_nick") {
+            const menu = new StringSelectMenuBuilder()
+                .setCustomId("ticket_select")
+                .setPlaceholder("Sélectionner une mission")
+                .addOptions([
+                    { label: "Recrutement", value: "recrutement", emoji: "📋" },
+                    { label: "Support", value: "support", emoji: "⚠️" }
+                ]);
 
-        const modal = new ModalBuilder()
-            .setCustomId("set_rp_name")
-            .setTitle("Pseudo RP");
+            return interaction.reply({
+                embeds: [embed],
+                components: [new ActionRowBuilder().addComponents(menu)]
+            });
+        }
 
-        const input = new TextInputBuilder()
-            .setCustomId("rp_name")
-            .setLabel("Prénom Nom")
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true);
 
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(input)
-        );
+        // ================= RP BUTTON =================
+        if (interaction.isButton() && interaction.customId === "change_nick") {
 
-        return interaction.showModal(modal);
-    }
+            const modal = new ModalBuilder()
+                .setCustomId("rp_modal")
+                .setTitle("Pseudo RP");
 
-    // ===== MODAL RP =====
-    if (interaction.isModalSubmit() && interaction.customId === "set_rp_name") {
+            const input = new TextInputBuilder()
+                .setCustomId("rp_name")
+                .setLabel("Prénom Nom RP")
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
 
-        const rpName = interaction.fields.getTextInputValue("rp_name");
-        const member = interaction.member;
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(input)
+            );
 
-        try {
-            const regex = /^[A-Za-zÀ-ÿ]+ [A-Za-zÀ-ÿ]+$/;
+            return interaction.showModal(modal);
+        }
 
-            if (!regex.test(rpName)) {
-                return interaction.reply({
-                    content: "❌ Format invalide (Prénom Nom)",
-                    flags: 64
-                });
+
+        // ================= RP SUBMIT =================
+        if (interaction.isModalSubmit() && interaction.customId === "rp_modal") {
+
+            const rpName = interaction.fields.getTextInputValue("rp_name");
+
+            const member = interaction.member;
+
+            try {
+                await member.setNickname(rpName);
+            } catch (err) {
+                console.log("Impossible de changer le pseudo");
             }
 
-            await member.setNickname(rpName);
-
-            await member.roles.add(config.memberRole);
-            await member.roles.remove(config.unverifiedRole);
+            const role = interaction.guild.roles.cache.get(config.acceptedRole);
+            if (role) await member.roles.add(role);
 
             return interaction.reply({
-                content: "✅ Accès débloqué ! Bienvenue.",
-                flags: 64
+                content: "✅ Pseudo RP validé, accès débloqué !",
+                ephemeral: true
+            });
+        }
+
+
+        // ================= TICKETS =================
+        if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
+
+            const type = interaction.values[0];
+
+            const channel = await interaction.guild.channels.create({
+                name: `ticket-${interaction.user.username}`,
+                type: ChannelType.GuildText,
+                permissionOverwrites: [
+                    {
+                        id: interaction.guild.id,
+                        deny: [PermissionsBitField.Flags.ViewChannel]
+                    },
+                    {
+                        id: interaction.user.id,
+                        allow: [
+                            PermissionsBitField.Flags.ViewChannel,
+                            PermissionsBitField.Flags.SendMessages,
+                            PermissionsBitField.Flags.ReadMessageHistory
+                        ]
+                    },
+                    {
+                        id: config.staffRole,
+                        allow: [
+                            PermissionsBitField.Flags.ViewChannel,
+                            PermissionsBitField.Flags.SendMessages,
+                            PermissionsBitField.Flags.ReadMessageHistory
+                        ]
+                    }
+                ]
             });
 
-        } catch (err) {
-            console.error(err);
-
             return interaction.reply({
+                content: `🎫 Ticket créé : ${channel}`,
+                ephemeral: true
+            });
+        }
+
+    } catch (err) {
+        console.error("ERROR:", err);
+
+        if (interaction.isRepliable()) {
+            interaction.reply({
                 content: "❌ Erreur système",
-                flags: 64
-            });
+                ephemeral: true
+            }).catch(() => {});
         }
     }
 });
+
 
 // ================= LOGIN =================
 
