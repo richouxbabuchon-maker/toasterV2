@@ -23,6 +23,9 @@ module.exports = {
         
     },
 
+    // Channel
+    welcomeChannel: "1503429498505396264",
+
     // Ticket emojis
     ticketEmojis: {
         recrutement: "📋",
