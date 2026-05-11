@@ -26,6 +26,7 @@ module.exports = {
     // Channel
     welcomeChannel: "1503429498505396264",
     unverifiedRole: "1503471966256889928",
+    memberRole:"1503474355332452423",
 
     // Ticket emojis
     ticketEmojis: {
