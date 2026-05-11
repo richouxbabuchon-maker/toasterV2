@@ -5,6 +5,7 @@ console.log("🚀 Bot démarré");
 const {
     Client,
     GatewayIntentBits,
+    ChannelType,
     PermissionsBitField,
     ActionRowBuilder,
     StringSelectMenuBuilder,
@@ -12,28 +13,27 @@ const {
     SlashCommandBuilder,
     ButtonBuilder,
     ButtonStyle,
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
     REST,
     Routes,
-    ChannelType
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle
 } = require('discord.js');
 
+const discordTranscripts = require('discord-html-transcripts');
 const config = require('./config');
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages
+        GatewayIntentBits.GuildMembers
     ]
 });
-
 
 // ================= READY =================
 
 client.once('ready', async () => {
+
     console.log(`🟢 Connecté: ${client.user.tag}`);
 
     const commands = [
@@ -42,7 +42,7 @@ client.once('ready', async () => {
             .setDescription('Ouvre le centre de support')
     ].map(c => c.toJSON());
 
-    const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+    const rest = new REST({ version: '10' }).setToken(config.token);
 
     await rest.put(
         Routes.applicationGuildCommands(client.user.id, config.guildId),
@@ -52,73 +52,69 @@ client.once('ready', async () => {
     console.log("✅ Slash commands OK");
 });
 
-
-// ================= WELCOME SYSTEM =================
+// ================= MEMBER JOIN =================
 
 client.on('guildMemberAdd', async (member) => {
 
-    const channel = member.guild.channels.cache.get(config.welcomeChannel);
-    if (!channel) return;
+    try {
 
-    const embed = new EmbedBuilder()
-        .setTitle("🚀 Bienvenue sur le serveur")
-        .setDescription(
-            "👋 Bienvenue !\n\n" +
-            "⚠️ Tu dois définir ton pseudo RP pour accéder au serveur.\n\n" +
-            "Clique sur le bouton ci-dessous."
-        )
-        .setColor(0x0B3D91);
+        // rôle bloqué
+        const unverified = member.guild.roles.cache.get(config.unverifiedRole);
+        if (unverified) await member.roles.add(unverified).catch(() => {});
 
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId("change_nick")
-            .setLabel("✏️ Définir mon pseudo RP")
-            .setStyle(ButtonStyle.Primary)
-    );
+        const channel = member.guild.channels.cache.get(config.welcomeChannel);
+        if (!channel) return;
 
-    channel.send({
-        content: `${member}`,
-        embeds: [embed],
-        components: [row]
-    });
+        const embed = new EmbedBuilder()
+            .setTitle("🚀 Bienvenue dans l'agence NASA")
+            .setDescription(
+                "👋 Avant d'accéder au serveur,\n" +
+                "tu dois définir ton identité RP.\n\n" +
+                "📌 Format obligatoire : `Prénom Nom`"
+            )
+            .setColor(0x0B3D91)
+            .setFooter({ text: "NASA Identity System" });
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("change_nick")
+                .setLabel("✏️ Définir mon identité")
+                .setStyle(ButtonStyle.Primary)
+        );
+
+        await channel.send({
+            content: `${member}`,
+            embeds: [embed],
+            components: [row]
+        });
+
+    } catch (err) {
+        console.error("JOIN ERROR:", err);
+    }
 });
-
 
 // ================= INTERACTIONS =================
 
-client.on('interactionCreate', async (interaction) => {
+client.on('interactionCreate', async interaction => {
 
     try {
 
-        // ================= PANEL NASA =================
-        if (interaction.isChatInputCommand() && interaction.commandName === "panel") {
+        // ================= PANEL =================
+
+        if (interaction.isChatInputCommand() && interaction.commandName === 'panel') {
 
             const embed = new EmbedBuilder()
                 .setTitle("🚀 NASA Support Center")
-                .setDescription(
-                    "👨‍🚀 Bienvenue dans le système de support de la NASA\n\n" +
-                    "🛰️ Sélectionne une mission pour ouvrir un ticket."
-                )
-                .setColor(0x0B3D91)
-                .setThumbnail("https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg")
-                .setImage("https://www.nasa.gov/wp-content/uploads/2023/03/nasa-logo-web-rgb.png")
-                .addFields(
-                    { name: "📡 Statut", value: "Tous systèmes opérationnels", inline: true },
-                    { name: "⏱ Réponse", value: "Rapide (24/7)", inline: true },
-                    { name: "🎫 Support", value: "Actif", inline: true }
-                )
-                .setFooter({
-                    text: "NASA Support System • Ticket Center",
-                    iconURL: "https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg"
-                })
-                .setTimestamp();
+                .setDescription("🛰️ Choisis une mission pour ouvrir un ticket.")
+                .setColor(0x0B3D91);
 
             const menu = new StringSelectMenuBuilder()
-                .setCustomId("ticket_select")
-                .setPlaceholder("Sélectionner une mission")
+                .setCustomId('ticket_select')
+                .setPlaceholder('Sélectionner une mission')
                 .addOptions([
-                    { label: "Recrutement", value: "recrutement", emoji: "📋" },
-                    { label: "Support", value: "support", emoji: "⚠️" }
+                    { label: 'Recrutement', value: 'recrutement', emoji: '📋' },
+                    { label: 'Direction', value: 'contacter_la_direction', emoji: '⚠️' },
+                    { label: 'Partenariats', value: 'partenariats', emoji: '🤝' }
                 ]);
 
             return interaction.reply({
@@ -127,59 +123,68 @@ client.on('interactionCreate', async (interaction) => {
             });
         }
 
+        // ================= BUTTON RP NAME =================
 
-        // ================= RP BUTTON =================
         if (interaction.isButton() && interaction.customId === "change_nick") {
 
             const modal = new ModalBuilder()
-                .setCustomId("rp_modal")
-                .setTitle("Pseudo RP");
+                .setCustomId("nickname_modal")
+                .setTitle("Identité RP");
 
             const input = new TextInputBuilder()
                 .setCustomId("rp_name")
-                .setLabel("Prénom Nom RP")
+                .setLabel("Prénom Nom")
                 .setStyle(TextInputStyle.Short)
-                .setRequired(true);
+                .setRequired(true)
+                .setMinLength(3)
+                .setMaxLength(32);
 
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(input)
-            );
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
 
             return interaction.showModal(modal);
         }
 
+        // ================= MODAL RP =================
 
-        // ================= RP SUBMIT =================
-        if (interaction.isModalSubmit() && interaction.customId === "rp_modal") {
+        if (interaction.isModalSubmit() && interaction.customId === "nickname_modal") {
 
             const rpName = interaction.fields.getTextInputValue("rp_name");
 
-            const member = interaction.member;
+            await interaction.member.setNickname(rpName).catch(() => {});
 
-            try {
-                await member.setNickname(rpName);
-            } catch (err) {
-                console.log("Impossible de changer le pseudo");
-            }
+            const unverified = interaction.guild.roles.cache.get(config.unverifiedRole);
+            const memberRole = interaction.guild.roles.cache.get(config.memberRole);
 
-            const role = interaction.guild.roles.cache.get(config.acceptedRole);
-            if (role) await member.roles.add(role);
+            if (unverified) await interaction.member.roles.remove(unverified).catch(() => {});
+            if (memberRole) await interaction.member.roles.add(memberRole).catch(() => {});
 
             return interaction.reply({
-                content: "✅ Pseudo RP validé, accès débloqué !",
-                ephemeral: true
+                content: `✅ Identité validée : **${rpName}**`,
+                flags: 64
             });
         }
 
-
         // ================= TICKETS =================
-        if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
+
+        if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
 
             const type = interaction.values[0];
 
+            const category = config.categories[type];
+            const staffRole = interaction.guild.roles.cache.get(config.staffRole);
+
+            if (!category || !staffRole) {
+                return interaction.reply({ content: "❌ config invalide", flags: 64 });
+            }
+
+            const rpName = interaction.member.displayName || interaction.user.username;
+            const emoji = config.ticketEmojis?.[type] || "📋";
+
             const channel = await interaction.guild.channels.create({
-                name: `ticket-${interaction.user.username}`,
+                name: `${emoji}・${rpName}`,
                 type: ChannelType.GuildText,
+                parent: category,
+                topic: `ticket-${interaction.user.id}-${type}`,
                 permissionOverwrites: [
                     {
                         id: interaction.guild.id,
@@ -194,7 +199,7 @@ client.on('interactionCreate', async (interaction) => {
                         ]
                     },
                     {
-                        id: config.staffRole,
+                        id: staffRole.id,
                         allow: [
                             PermissionsBitField.Flags.ViewChannel,
                             PermissionsBitField.Flags.SendMessages,
@@ -204,24 +209,80 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
+            const embed = new EmbedBuilder()
+                .setTitle("🛰️ Mission ouverte")
+                .setDescription(`Catégorie : **${type}**`)
+                .setColor(0x57F287);
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId("close_ticket")
+                    .setLabel("Fermer")
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji("🔒")
+            );
+
+            await channel.send({ embeds: [embed], components: [row] });
+
             return interaction.reply({
-                content: `🎫 Ticket créé : ${channel}`,
-                ephemeral: true
+                content: `✅ Ticket créé : ${channel}`,
+                flags: 64
             });
+        }
+
+        // ================= CLOSE =================
+
+        if (interaction.isButton() && interaction.customId === "close_ticket") {
+
+            return interaction.reply({
+                content: "Confirmer fermeture ?",
+                components: [
+                    new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId("confirm_close")
+                            .setLabel("Confirmer")
+                            .setStyle(ButtonStyle.Danger)
+                    )
+                ],
+                flags: 64
+            });
+        }
+
+        // ================= CONFIRM CLOSE =================
+
+        if (interaction.isButton() && interaction.customId === "confirm_close") {
+
+            await interaction.deferReply({ flags: 64 });
+
+            const transcript = await discordTranscripts.createTranscript(interaction.channel);
+
+            const logs = interaction.guild.channels.cache.get(config.logsChannel);
+
+            if (logs) {
+                logs.send({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setTitle("📡 Ticket fermé")
+                            .setDescription(`Par ${interaction.user.tag}`)
+                            .setColor(0xED4245)
+                    ],
+                    files: [transcript]
+                });
+            }
+
+            await interaction.editReply("Fermeture...");
+
+            setTimeout(() => interaction.channel.delete().catch(() => {}), 1500);
         }
 
     } catch (err) {
         console.error("ERROR:", err);
 
         if (interaction.isRepliable()) {
-            interaction.reply({
-                content: "❌ Erreur système",
-                ephemeral: true
-            }).catch(() => {});
+            interaction.reply({ content: "❌ erreur système", flags: 64 }).catch(() => {});
         }
     }
 });
-
 
 // ================= LOGIN =================
 
