@@ -355,19 +355,8 @@ client.on('interactionCreate', async interaction => {
 
             if (type === "recrutement") {
 
+                // Boutons visibles par tous
                 row = new ActionRowBuilder().addComponents(
-
-                    new ButtonBuilder()
-                        .setCustomId('validate_ticket')
-                        .setLabel('Valider entretien')
-                        .setStyle(ButtonStyle.Success)
-                        .setEmoji('✅'),
-
-                    new ButtonBuilder()
-                        .setCustomId('refuse_ticket')
-                        .setLabel('Refuser entretien')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('❌'),
 
                     new ButtonBuilder()
                         .setCustomId('close_ticket')
@@ -392,6 +381,35 @@ client.on('interactionCreate', async interaction => {
                 embeds: [embed],
                 components: [row]
             });
+
+            if (type ==="recrutement") {
+
+                const staffPing = config.bypassRoles
+                      .map(role => `<@&${role}>`)
+                      .join(" ");
+                      
+                const staffRow = new ActionRowBuilder().addComponents(
+
+                    new ButtonBuilder()
+                        .setCustomId('validate_ticket')
+                        .setLabel('Valider entretien')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('✅'),
+
+                    new ButtonBuilder()
+                        .setCustomId('refuse_ticket')
+                        .setLabel('Refuser entretien')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('❌')    
+                );
+
+                await channel.send({
+                    content: `${staffPing}`,
+                    components: [staffRow]
+                });
+                
+                
+            }
 
             // RESET MENU
             await interaction.message.edit({
