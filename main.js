@@ -382,33 +382,39 @@ client.on('interactionCreate', async interaction => {
                 components: [row]
             });
 
-            if (type ==="recrutement") {
+            if (type === 'recrutement') {
 
-                const staffPing = config.bypassRoles
-                      .map(role => `<@&${role}>`)
-                      .join(" ");
-                      
-                const staffRow = new ActionRowBuilder().addComponents(
+                row = new ActionRowBuilder().addComponents(
 
                     new ButtonBuilder()
                         .setCustomId('validate_ticket')
                         .setLabel('Valider entretien')
-                        .setStyle(ButtonStyle.Secondary)
+                        .setStyle(ButtonStyle.Success)
                         .setEmoji('✅'),
 
                     new ButtonBuilder()
                         .setCustomId('refuse_ticket')
                         .setLabel('Refuser entretien')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('❌')    
+                        .setStyle(ButtonStyle.Secondary) 
+                        .setEmoji('❌'),
+                        
+                    new ButtonBuilder()
+                        .setCustomId('close_ticket')
+                        .setLabel('Fermer la mission')
+                        .setStyle(ButtonStyle.Danger) 
+                        .setEmoji('🔒')    
                 );
 
-                await channel.send({
-                    content: `${staffPing}`,
-                    components: [staffRow]
-                });
-                
-                
+            } else {
+
+                row = new ActionRowBuilder().addComponents(
+
+                    new ButtonBuilder()
+                        .setCustomId('close_ticket')
+                        .setLabel('Fermer la mission')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('🔒')
+                );
             }
 
             // RESET MENU
