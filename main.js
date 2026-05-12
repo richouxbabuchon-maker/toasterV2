@@ -388,6 +388,11 @@ client.on('interactionCreate', async interaction => {
                 );
             }
 
+            await channel.send({
+                embeds: [embed],
+                components: [row]
+            });
+
             // RESET MENU
             await interaction.message.edit({
                 components: [
