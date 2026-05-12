@@ -540,6 +540,17 @@ client.on('interactionCreate', async interaction => {
 
             if (id === 'validate_ticket') {
 
+                const hasPermission = config.bypassRoles.some(role =>
+                    interaction.member.roles.cache.has(role)
+                );
+
+                if (!hasPermission) {
+                    return interaction.reply({
+                        content: "❌ Seul le staff peut valider un recrutement.",
+                        flags: 64
+                    });
+                }
+
                 if (
                     !interaction.channel.topic.includes('recrutement')
                 ) {
@@ -616,6 +627,17 @@ client.on('interactionCreate', async interaction => {
             // ================= REFUSE =================
 
             if (id === 'refuse_ticket') {
+
+                const hasPermission = config.bypassRoles.some(role =>
+                    interaction.member.roles.cache.has(role)
+                );
+
+                if (!hasPermission) {
+                    return interaction.reply({
+                        content: "❌ Seul le staff peut refuser un recrutement.",
+                        flags: 64
+                    });
+                }
 
                 if (
                     !interaction.channel.topic.includes('recrutement')
