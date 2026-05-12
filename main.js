@@ -216,21 +216,19 @@ client.on('interactionCreate', async interaction => {
             const rpName =
                 interaction.fields.getTextInputValue("rp_name");
 
+            const member = interaction.member;    
+
             try {
 
-                // 🔥 Rename membre
-                await interaction.member.setNickname(rpName);
+                // 🔥 Changer pseudo
+                await member.setNickname(rpName);
 
-                // 🔓 Retirer rôle bloqué
-                const unverifiedRole =
-                    interaction.guild.roles.cache.get(
-                        config.unverifiedRole
-                    );
+                // ✅ Ajouter rôle membre
+                await member.roles.add(config.memberRole);
 
-                if (unverifiedRole) {
-                    await interaction.member.roles.remove(unverifiedRole);
-                }
-
+                // 🔓 Retirer rôle non vérifié
+                await member.roles.remove(config.unverifiedRole)
+                
                 return interaction.reply({
                     content:
                         `✅ Ton identité RP est maintenant : **${rpName}**`,
