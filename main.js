@@ -393,9 +393,38 @@ client.on('interactionCreate', async interaction => {
                 components: [row]
             });
 
-            return interaction.reply({
-                content: `✅ Mission ouverte : ${channel}`,
-                flags: 64
+            // RESET MENU
+            await interaction.message.edit({
+                components: [
+                    new ActionRowBuilder().addComponents(
+                        new StringSelectMenuBuilder()
+                            .setCustomId('ticket_select')
+                            .setPlaceholder('🛰️ Sélectionner une mission')
+                            .addOptions([
+                                {
+                                    label:'Recrutement',
+                                    value: 'recrutement',
+                                    emoji: '📋'
+                                },
+                                {
+                                    label:'Contacter la Direction',
+                                    value:'contacter_la_direction',
+                                    emoji:'⚠️'
+                                },
+                                {
+                                    label:'Partenariats',
+                                    value:'partenariats',
+                                    emoji:'🤝'
+                                }
+                            ]) 
+                   )  
+             ]
+         });
+ 
+         return interaction.reply({
+            content: `✅ Mission ouverte : ${channel}`,
+            flags: 64
+
             });
         }
 
