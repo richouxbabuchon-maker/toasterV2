@@ -84,7 +84,7 @@ client.on('guildMemberAdd', async (member) => {
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId("change_nick")
+            .setCustomId(`change_nick_${member.id}`)
             .setLabel("✏️ Définir mon identité")
             .setStyle(ButtonStyle.Primary)
     );
@@ -181,11 +181,13 @@ client.on('interactionCreate', async interaction => {
 
         if (
             interaction.isButton() &&
-            interaction.customId === "change_nick"
+            interaction.customId.startsWith("change_nick_")
         ) {
 
+            const targetId = interaction.customId.split("_");
+
             const modal = new ModalBuilder()
-                .setCustomId("nickname_modal")
+                .setCustomId(`nickname_modal_${targetId}`)
                 .setTitle("Identité RP");
 
             const nicknameInput = new TextInputBuilder()
@@ -210,8 +212,10 @@ client.on('interactionCreate', async interaction => {
 
         if (
             interaction.isModalSubmit() &&
-            interaction.customId === "nickname_modal"
+            interaction.customId.startsWith("nickname_modal_")
         ) {
+
+            const [, targetId, messageId]= interaction.customId.split("_")[2];
 
             const rpName =
                 interaction.fields.getTextInputValue("rp_name");
@@ -394,7 +398,7 @@ client.on('interactionCreate', async interaction => {
             });
 
             // RESET MENU
-            await interaction.message.edit({
+            await interaction.update({
                 components: [
                     new ActionRowBuilder().addComponents(
                         new StringSelectMenuBuilder()
@@ -420,8 +424,19 @@ client.on('interactionCreate', async interaction => {
                    )  
              ]
          });
+
+         await channel.send({
+            embeds: [embed],
+            components: [row]
+         });
+
+         await interaction.update({
+            component: [
+                new ActionRowBuilder().addComponents(menu)
+            ]
+         });
  
-         return interaction.reply({
+         return interaction.followUp({
             content: `✅ Mission ouverte : ${channel}`,
             flags: 64
 
