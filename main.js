@@ -353,35 +353,6 @@ client.on('interactionCreate', async interaction => {
 
             // ================= RECRUTEMENT =================
 
-            if (type === "recrutement") {
-
-                // Boutons visibles par tous
-                row = new ActionRowBuilder().addComponents(
-
-                    new ButtonBuilder()
-                        .setCustomId('close_ticket')
-                        .setLabel('Fermer la mission')
-                        .setStyle(ButtonStyle.Danger)
-                        .setEmoji('🔒')
-                );
-
-            } else {
-
-                row = new ActionRowBuilder().addComponents(
-
-                    new ButtonBuilder()
-                        .setCustomId('close_ticket')
-                        .setLabel('Fermer la mission')
-                        .setStyle(ButtonStyle.Danger)
-                        .setEmoji('🔒')
-                );
-            }
-
-            await channel.send({
-                embeds: [embed],
-                components: [row]
-            });
-
             if (type === 'recrutement') {
 
                 row = new ActionRowBuilder().addComponents(
