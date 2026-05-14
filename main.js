@@ -84,12 +84,12 @@ client.on('guildMemberAdd', async (member) => {
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId(`change_nick_${member.id}`)
+            .setCustomId(`change_nick_${member.id}_${msg.id}`)
             .setLabel("✏️ Définir mon identité")
             .setStyle(ButtonStyle.Primary)
     );
 
-    await channel.send({
+    const msg = await channel.send({
         content: `${member}`,
         embeds: [embed],
         components: [row]
@@ -184,7 +184,7 @@ client.on('interactionCreate', async interaction => {
             interaction.customId.startsWith("change_nick_")
         ) {
 
-            const targetId = interaction.customId.split("_");
+            const[, targetId, messageId] = interaction.customId.split("_");
 
             const modal = new ModalBuilder()
                 .setCustomId(`nickname_modal_${targetId}`)
@@ -215,7 +215,7 @@ client.on('interactionCreate', async interaction => {
             interaction.customId.startsWith("nickname_modal_")
         ) {
 
-            const [, targetId, messageId]= interaction.customId.split("_")[2];
+            const targetId = interaction.customId.split("_")[2];
 
             const rpName =
                 interaction.fields.getTextInputValue("rp_name");
@@ -232,6 +232,21 @@ client.on('interactionCreate', async interaction => {
 
                 // 🔓 Retirer rôle non vérifié
                 await member.roles.remove(config.unverifiedRole)
+
+                // 🔥 SUPPRESSION MESSAGE BIENVENUE
+                const channel = interaction.guild.channel.cache.get(config.welcomeChannel);
+
+                if (channel) {
+                    const message = await channel.messages.fetch({ limit: 50});
+
+                    const welcomeMsg = messages.find(m =>
+                        m.content.includes(targetId)
+                    );
+
+                    if (welcomeMsg) {
+                        await welcomeMsg.delete().catch(() => {});
+                    }
+                }
                 
                 return interaction.reply({
                     content:
