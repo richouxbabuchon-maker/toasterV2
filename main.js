@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 console.log("🚀 Bot démarré");
+console.log("TOKEN =", process.env.TOKEN);
 
 const {
     Client,
@@ -487,7 +488,7 @@ client.on('interactionCreate', async interaction => {
             content: `✅ Mission ouverte : ${channel}`,
             flags: 64
 
-            });
+         });
         }
 
         // ================= BUTTONS =================
