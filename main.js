@@ -28,7 +28,9 @@ const config = require('./config');
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
     ]
 });
 
@@ -64,6 +66,11 @@ client.on('guildMemberAdd', async (member) => {
 
     try {
 
+        if (!member.guild) {
+            console.log("Guild undefined");
+            return;
+        }
+
         // 🔒 Ajouter rôle non vérifié   
         const role = member.guild.role.cache.get(config.unverifiedRole);
         const channel = member.guild.channels.cache.get(config.welcomeChannel);
@@ -77,6 +84,9 @@ client.on('guildMemberAdd', async (member) => {
             console.log("Channel introuvable");
             return;
         } 
+
+        console.log("Member join:", member.user.tag);
+        
         
         const embed = new EmbedBuilder()
              .setTitle("🚀 Bienvenue dans notre agence spatiale")
