@@ -2,6 +2,8 @@ require('dotenv').config();
 
 console.log("🚀 Bot démarré");
 console.log("TOKEN =", process.env.TOKEN);
+console.log("ROLE ID =", config.unverifiedRole);
+console.log("CHANNEL ID =", config.welcomeChannel);
 
 const {
     Client,
@@ -63,18 +65,19 @@ client.on('guildMemberAdd', async (member) => {
 
     try {
 
-        // 🔒 Ajouter rôle non vérifié      
-        if (unverifiedRole) {
-            member.roles.add(unverifiedRole)
+        // 🔒 Ajouter rôle non vérifié   
+        const role = member.guild.role.cache.get(config.unverifiedRole);
+        const channel = member.guild.channels.cache.get(config.welcomeChannel);
+
+        if (role) {
+            await member.roles.add(role)
                  .catch(console.error);
         }
-        
-        const channel =
-             member.guild.channels.cache.get(
-                config.welcomeChannel
-             );
 
-        if (!channel) return;
+        if (!channel) {
+            console.log("Channel introuvable");
+            return;
+        } 
         
         const embed = new EmbedBuilder()
              .setTitle("🚀 Bienvenue dans notre agence spatiale")
