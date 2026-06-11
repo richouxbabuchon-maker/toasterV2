@@ -66,14 +66,17 @@ client.on('guildMemberAdd', async (member) => {
 
     try {
 
-        if (!member.guild) {
+        if (!member?.guild) {
             console.log("Guild undefined");
             return;
+
+        await member.guild.roles.fetch().catch(() => {});
+        await member.guild.channels.fetch().catch(() => {});    
         }
 
         // 🔒 Ajouter rôle non vérifié   
-        const role = member.guild.role.cache.get(config.unverifiedRole);
-        const channel = member.guild.channels.cache.get(config.welcomeChannel);
+        const role = await member.guild.roles.fetch(config.unverifiedRole).catch(() => null);
+        const channel = await member.guild.channels.fetch(config.welcomeChannel).catch(() => null);
 
         if (role) {
             await member.roles.add(role)
@@ -86,7 +89,7 @@ client.on('guildMemberAdd', async (member) => {
         } 
 
         console.log("Member join:", member.user.tag);
-        
+
         
         const embed = new EmbedBuilder()
              .setTitle("🚀 Bienvenue dans notre agence spatiale")
@@ -283,9 +286,9 @@ client.on('interactionCreate', async interaction => {
                 await member.roles.remove(config.unverifiedRole)
 
                 // 🔥 SUPPRESSION MESSAGE BIENVENUE
-                const channel = interaction.guild.channel.cache.get(config.welcomeChannel);
+                const channel = interaction.guild.channels.cache.get(config.welcomeChannel);
 
-                if (channel) {
+                if (channel?.messages) {
 
                     const welcomeMsg =
                          await channel.messages.fetch(
@@ -338,7 +341,8 @@ client.on('interactionCreate', async interaction => {
                 });
             }
 
-            const member = interaction.member;
+            const member = 
+                 await interaction.guild.members.fetch(interaction.user.id);
 
             const hasBypass = config.bypassRoles?.some(role =>
                 member.roles.cache.has(role)
@@ -634,8 +638,7 @@ client.on('interactionCreate', async interaction => {
 
                 try {
 
-                    await interaction.channel.setParent(
-                        config.validatedCategory
+                    await interaction.channel.setParent(config.validatedCategory
                     );
 
                     const ticketOwnerId =
