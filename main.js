@@ -63,15 +63,10 @@ client.on('guildMemberAdd', async (member) => {
 
     try {
 
-        // 🔒 Ajouter rôle non vérifié
-        const unverifiedRole =
-            member.guild.roles.cache.get(
-                config.unverifiedRole
-            );
-        
+        // 🔒 Ajouter rôle non vérifié      
         if (unverifiedRole) {
-            await member.roles.add(unverifiedRole)
-                 .catch(() => {});
+            member.roles.add(unverifiedRole)
+                 .catch(console.error);
         }
         
         const channel =
@@ -89,7 +84,7 @@ client.on('guildMemberAdd', async (member) => {
                 "📌 Format obligatoire ; `Prénom Nom`"
              )
              .setColor(0x0B3D91)
-             .setFolder({
+             .setFooter({
                 text: "NASA Identity System"
              });
 
