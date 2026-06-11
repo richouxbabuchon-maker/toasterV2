@@ -42,7 +42,8 @@ client.once('ready', async () => {
             .setDescription('Ouvre le centre de support')
     ].map(c => c.toJSON());
 
-    const rest = new REST({ version: '10' }).setToken(config.token);
+    const rest = new REST({ version: '10' })
+        .setToken(process.env.TOKEN);
 
     await rest.put(
         Routes.applicationGuildCommands(
@@ -59,41 +60,67 @@ client.once('ready', async () => {
 
 client.on('guildMemberAdd', async (member) => {
 
-    // 🔒 Ajouter rôle bloqué
-    const unverifiedRole = member.guild.roles.cache.get(config.unverifiedRole);
+    try {
 
-    if (unverifiedRole) {
-        await member.roles.add(unverifiedRole).catch(() => {});
+        // 🔒 Ajouter rôle non vérifié
+        const unverifiedRole =
+            member.guild.roles.cache.get(
+                config.unverifiedRole
+            );
+        
+        if (unverifiedRole) {
+            await member.roles.add(unverifiedRole)
+                 .catch(() => {});
+        }
+        
+        const channel =
+             member.guild.channels.cache.get(
+                config.welcomeChannel
+             );
+
+        if (!channel) return;
+        
+        const embed = new EmbedBuilder()
+             .setTitle("🚀 Bienvenue dans notre agence spatiale")
+             .setDescription(
+                "👋 Avant d'accéder au serveur,\n" +
+                "vous devez définir votre identité RP.\n\n" +
+                "📌 Format obligatoire ; `Prénom Nom`"
+             )
+             .setColor(0x0B3D91)
+             .setFolder({
+                text: "NASA Identity System"
+             });
+
+        // Envoi du message D'ABORD
+        const msg = await channel.send({
+            content: `${member}`,
+            embeds: [embed]
+        });
+        
+        // Puis ajout du bouton
+        const row = new ActionRowBuilder()
+             .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(
+                        `change_nick_${member.id}_${msg.id}`
+                    )
+                    .setLabel("✏️ Définir mon identité")
+                    .setStyle(ButtonStyle.Primary)
+             );
+
+        await msg.edit({
+            components: [row]
+        });     
+    } catch (err) {
+        
+        console.error(
+            "❌ guildMemberAdd error:",
+            err
+        );
     }
 
-    const channel = member.guild.channels.cache.get(config.welcomeChannel);
-
-    if (!channel) return;
-
-    const embed = new EmbedBuilder()
-        .setTitle("🚀 Bienvenue dans notre agence spatiale")
-        .setDescription(
-            "👋 Avant d'accéder au serveur,\n" +
-            "vous devez définir votre identité RP.\n\n" +
-            "📌 Format obligatoire : `Prénom Nom`"
-        )
-        .setColor(0x0B3D91)
-        .setFooter({
-            text: "NASA Identity System"
-        });
-
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(`change_nick_${member.id}_${msg.id}`)
-            .setLabel("✏️ Définir mon identité")
-            .setStyle(ButtonStyle.Primary)
-    );
-
-    const msg = await channel.send({
-        content: `${member}`,
-        embeds: [embed],
-        components: [row]
-    });
+    
 });
 
 // ================= INTERACTIONS =================
@@ -184,10 +211,16 @@ client.on('interactionCreate', async interaction => {
             interaction.customId.startsWith("change_nick_")
         ) {
 
-            const[, targetId, messageId] = interaction.customId.split("_");
+            const parts =
+                 interaction.customId.split("_");
+
+            const targetId = parts[2];
+            const messageId = parts[3];     
 
             const modal = new ModalBuilder()
-                .setCustomId(`nickname_modal_${targetId}`)
+                .setCustomId(
+                    `nickname_modal_${targetId}_${messageId}`
+                )
                 .setTitle("Identité RP");
 
             const nicknameInput = new TextInputBuilder()
@@ -212,13 +245,21 @@ client.on('interactionCreate', async interaction => {
 
         if (
             interaction.isModalSubmit() &&
-            interaction.customId.startsWith("nickname_modal_")
+            interaction.customId.startsWith(
+                "nickname_modal_"
+            )
         ) {
 
-            const targetId = interaction.customId.split("_")[2];
+            const parts =
+                 interaction.customId.split("_")
+                 
+            const targetId = parts[2];
+            const messageId = parts[3];     ;
 
             const rpName =
-                interaction.fields.getTextInputValue("rp_name");
+                interaction.fields.getTextInputValue(
+                    "rp_name"
+                );
 
             const member = interaction.member;    
 
@@ -237,14 +278,16 @@ client.on('interactionCreate', async interaction => {
                 const channel = interaction.guild.channel.cache.get(config.welcomeChannel);
 
                 if (channel) {
-                    const message = await channel.messages.fetch({ limit: 50});
 
-                    const welcomeMsg = messages.find(m =>
-                        m.content.includes(targetId)
+                    const welcomeMsg =
+                         await channel.messages.fetch(
+                              messageId
                     );
 
                     if (welcomeMsg) {
-                        await welcomeMsg.delete().catch(() => {});
+                        await welcomeMsg
+                             .delete()
+                             .catch(() => {});
                     }
                 }
                 
@@ -440,17 +483,6 @@ client.on('interactionCreate', async interaction => {
              ]
          });
 
-         await channel.send({
-            embeds: [embed],
-            components: [row]
-         });
-
-         await interaction.update({
-            component: [
-                new ActionRowBuilder().addComponents(menu)
-            ]
-         });
- 
          return interaction.followUp({
             content: `✅ Mission ouverte : ${channel}`,
             flags: 64
