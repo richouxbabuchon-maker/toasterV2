@@ -2,7 +2,7 @@ require('dotenv').config();
 
 console.log("🚀 Bot démarré");
 console.log("TOKEN =", process.env.TOKEN);
-console.log("CHANNEL ID =", config.welcomeChannel);
+
 
 const {
     Client,
@@ -24,7 +24,6 @@ const {
 
 const discordTranscripts = require('discord-html-transcripts');
 const config = require('./config');
-console.log("ROLE ID =", config.unverifiedRole);
 
 const client = new Client({
     intents: [
