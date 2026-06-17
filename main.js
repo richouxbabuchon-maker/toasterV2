@@ -14,7 +14,6 @@ app.listen(PORT, () => {
 });
 
 console.log("🚀 Bot démarré");
-console.log("TOKEN =", process.env.TOKEN);
 
 
 const {
@@ -795,5 +794,24 @@ client.on('interactionCreate', async interaction => {
 });
 
 // ================= LOGIN =================
+client.on('disconnect', () => {
+    console.log('🔴 Discord disconnect');
+});
+
+client.on('reconnecting', () => {
+    console.log('🟡 Discord reconnecting');
+});
+
+client.on('error', (err) => {
+    console.error('❌ Discord error:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+    console.error('❌ Unhandled Rejection:', err);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught Exception:', err);
+});
 
 client.login(process.env.TOKEN);
