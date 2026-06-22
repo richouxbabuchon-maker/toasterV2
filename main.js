@@ -46,6 +46,14 @@ const client = new Client({
     ]
 });
 
+setInterval(() => {
+    console.log(
+        `💓 Alive - ${new Date().toISOString()} - Discord: ${
+            client.isReady() ? "CONNECTED" : "DISCONNECT"
+        }`
+    );
+}, 60000);
+
 // ================= READY =================
 
 client.once('ready', async () => {
@@ -794,24 +802,20 @@ client.on('interactionCreate', async interaction => {
 });
 
 // ================= LOGIN =================
-client.on('disconnect', () => {
-    console.log('🔴 Discord disconnect');
+client.on('shardDisconnect', (event, id) => {
+    console.log('🔴 SHARD DISCONNECT', id, event?.code);
 });
 
-client.on('reconnecting', () => {
-    console.log('🟡 Discord reconnecting');
+client.on('shardResume', id => {
+    console.log('🟢 SHARD RESUME', id);
 });
 
-client.on('error', (err) => {
-    console.error('❌ Discord error:', err);
+client.on('shardReconnecting', id => {
+    console.log('🟡 SHARD RECONNECTING', id);
 });
 
-process.on('unhandledRejection', (err) => {
-    console.error('❌ Unhandled Rejection:', err);
-});
-
-process.on('uncaughtException', (err) => {
-    console.error('❌ Uncaught Exception:', err);
+client.on('error', error => {
+    console.error('❌ CLIENT ERROR', error);
 });
 
 client.login(process.env.TOKEN);
